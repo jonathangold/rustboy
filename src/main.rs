@@ -4,6 +4,8 @@ use std::io::Read;
 
 fn main() {
    let mut cpu: Cpu = Default::default();
+   let mut memory_map = MemoryMap::new();
+   memory_map.read(0x0000);
    cpu.process();
 }
 
@@ -26,7 +28,6 @@ struct Cpu {
     d:u8,
     e:u8,
     f:u8,
-    g:u8,
     h:u8,
     l:u8,
 
@@ -35,6 +36,7 @@ struct Cpu {
 impl Cpu {
     fn process(&mut self) {
         let byte = read_byte_from_rom(self.reg_pc);
+        println!("{:#x}", byte);
         match byte {
             //jp - get next two bytes and jump to addr
             0xc3 => {
@@ -78,7 +80,7 @@ impl Cpu {
                 let byte1 = read_byte_from_rom(self.reg_pc + 1) as u16;
                 let byte2 = (read_byte_from_rom(self.reg_pc + 2) as u16) << 8;
                 let addr = byte2 + byte1;
-                //TODO: implement ram to run this
+                //TODO: implement memory to run this
                 self.reg_pc += 3;
                 self.process();
             }
@@ -90,6 +92,19 @@ impl Cpu {
     }
 }
 
-struct Memory {
-    
+#[derive(Default, Debug)]
+struct MemoryMap {
+   rom_bank_0: Box<[u16]> //0x0000-0x3fff    
+}
+
+impl MemoryMap {
+    fn new() -> MemoryMap {
+        const rom_bank_0_size: usize = 0x3fff - 0x0000;
+        MemoryMap {
+            rom_bank_0:  vec![0; rom_bank_0_size].into_boxed_slice()
+        }
+    }
+    fn read(&self, addr: u16) {
+        println!("{:#x}", &self.rom_bank_0[addr as usize]);
+    }
 }
