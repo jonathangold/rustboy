@@ -3,16 +3,11 @@ use std::fs;
 use std::io::Read;
 
 fn main() {
-   let mut counter = 0;
-   for i in 0..100{
-       let mut cpu = Cpu {};
-       let byte = read_byte_from_rom(i);
-       counter += 1;
-       cpu.process(byte)
-   }
+   let mut cpu: Cpu = Default::default();
+   cpu.process();
 }
 
-fn read_byte_from_rom(counter:i32) -> u8 {
+fn read_byte_from_rom(counter:u16) -> u8 {
     let filename = env::args().nth(1).unwrap();
     let mut file = fs::File::open(&filename).unwrap();
     let mut file_buf = Vec::new();
@@ -21,15 +16,30 @@ fn read_byte_from_rom(counter:i32) -> u8 {
     
 }
 
+#[derive(Default)]
 struct Cpu {
     //registers
+    reg_pc: u16,
+    a:u8
 }
 
 impl Cpu {
-    fn process(self, byte:u8) {
+    fn process(&mut self) {
+        let byte = read_byte_from_rom(self.reg_pc);
         match byte {
-            //jp
-            0xc3 => {println!("jp")},
+            //jp - get next two bytes and jump to addr
+            0xc3 => {
+                let byte1 = read_byte_from_rom(self.reg_pc + 1) as u16;
+                let byte2 = (read_byte_from_rom(self.reg_pc + 2) as u16) << 8;
+                self.reg_pc = byte2 + byte1;
+                self.process();
+            },
+            //xor a
+            0xaf => {
+                self.a = 0;
+                self.reg_pc += 1;
+                self.process();
+            },
             _=> {panic!("{:#x}", byte)}
         }
     }
