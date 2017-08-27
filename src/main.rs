@@ -5,8 +5,9 @@ use std::io::Read;
 fn main() {
    let mut cpu: Cpu = Default::default();
    let mut memory_map = MemoryMap::new();
-   memory_map.read(0x0000);
-   cpu.process();
+   loop{
+    cpu.process(&mut memory_map);
+   }
 }
 
 fn read_byte_from_rom(counter:u16) -> u8 {
@@ -34,22 +35,20 @@ struct Cpu {
 }
 
 impl Cpu {
-    fn process(&mut self) {
-        let byte = read_byte_from_rom(self.reg_pc);
-        println!("{:#x}", byte);
-        match byte {
+    fn process(&mut self, memory_map:&mut MemoryMap) {
+        let opcode = read_byte_from_rom(self.reg_pc);
+        println!("opcode: {:#x}", opcode);
+        match opcode {
             //jp - get next two bytes and jump to addr
             0xc3 => {
                 let byte1 = read_byte_from_rom(self.reg_pc + 1) as u16;
                 let byte2 = (read_byte_from_rom(self.reg_pc + 2) as u16) << 8;
                 self.reg_pc = byte2 + byte1;
-                self.process();
             },
             //xor a
             0xaf => {
                 self.a = 0;
                 self.reg_pc += 1;
-                self.process();
             },
             //ld hl
             0x21 => {
@@ -58,53 +57,60 @@ impl Cpu {
                 self.h = byte2;
                 self.l = byte1;
                 self.reg_pc += 3;
-                self.process();
             },
             //ld c
             0xe => {
                 let byte = read_byte_from_rom(self.reg_pc +1);
                 self.c = byte;
                 self.reg_pc += 2;
-                self.process();
             },
             //ld b
             0x6 => {
                 let byte = read_byte_from_rom(self.reg_pc +1);
                 self.b = byte;
                 self.reg_pc += 2;
-                self.process();
             },
-            //ld
+            //ld hl, a
             0x32 => {
-                //load a into ff00+C
-                let byte1 = read_byte_from_rom(self.reg_pc + 1) as u16;
-                let byte2 = (read_byte_from_rom(self.reg_pc + 2) as u16) << 8;
-                let addr = byte2 + byte1;
-                //TODO: implement memory to run this
-                self.reg_pc += 3;
-                self.process();
+                //Save A at (HL) and decrement HL
+                self.h = 0;
+                self.l = self.a;
+                let hl = (self.l as u16).wrapping_sub(1);
+                self.h = (hl >> 8) as u8;
+                self.l = hl as u8;
+                print!("HL: {:#x}", hl);
+                self.reg_pc += 1;
+            },
+            //dec b
+            0x5 => {
+                self.b = self.b.wrapping_sub(1);
+                self.reg_pc += 1;
             }
             _=> {
                 println!("{:?}", self);
-                panic!("{:#x}", byte);
+                panic!("Unrecognized opcode: {:#x}", opcode);
             }
         }
     }
+    
 }
 
 #[derive(Default, Debug)]
 struct MemoryMap {
-   rom_bank_0: Box<[u16]> //0x0000-0x3fff    
+   memory: Box<[u16]> //0x0000-0x3fff    
 }
 
 impl MemoryMap {
     fn new() -> MemoryMap {
-        const rom_bank_0_size: usize = 0x3fff - 0x0000;
+        const MEMORY_SIZE: usize = 0x3fff - 0x0000;
         MemoryMap {
-            rom_bank_0:  vec![0; rom_bank_0_size].into_boxed_slice()
+            memory:  vec![0; MEMORY_SIZE].into_boxed_slice()
         }
     }
     fn read(&self, addr: u16) {
-        println!("{:#x}", &self.rom_bank_0[addr as usize]);
+        println!("address: {:#x}{:#x}", &self.memory[addr as usize], &self.memory[(addr + 1) as usize]);
+    }
+    fn write(&mut self, addr: u16, val: u16) {
+        self.memory[addr as usize] = val;
     }
 }
