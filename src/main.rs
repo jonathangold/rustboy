@@ -73,12 +73,9 @@ impl Cpu {
             //ld hl, a
             0x32 => {
                 //Save A at (HL) and decrement HL
-                self.h = 0;
-                self.l = self.a;
-                let hl = (self.l as u16).wrapping_sub(1);
+                let hl = (self.a as u16).wrapping_sub(1);
                 self.h = (hl >> 8) as u8;
                 self.l = hl as u8;
-                print!("HL: {:#x}", hl);
                 self.reg_pc += 1;
             },
             //dec b
