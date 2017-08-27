@@ -20,17 +20,37 @@ fn read_byte_from_rom(counter:u16) -> u8 {
 }
 
 #[derive(Default, Debug)]
+struct AF {
+    a:u8,
+    f:u8
+}
+
+#[derive(Default, Debug)]
+struct BC {
+    b:u8,
+    c:u8
+}
+
+#[derive(Default, Debug)]
+struct DE {
+    d:u8,
+    e:u8
+}
+
+#[derive(Default, Debug)]
+struct HL {
+    h:u8,
+    l:u8
+}
+
+#[derive(Default, Debug)]
 struct Cpu {
     //registers
     reg_pc: u16,
-    a:u8,
-    b:u8,
-    c:u8,
-    d:u8,
-    e:u8,
-    f:u8,
-    h:u8,
-    l:u8,
+    reg_af: AF,
+    reg_bc: BC,
+    reg_de: DE,
+    reg_hl: HL
 
 }
 
@@ -47,45 +67,58 @@ impl Cpu {
             },
             //xor a
             0xaf => {
-                self.a = 0;
+                self.reg_af.a = 0;
                 self.reg_pc += 1;
             },
             //ld hl
             0x21 => {
                 let byte1 = read_byte_from_rom(self.reg_pc + 1);
                 let byte2 = read_byte_from_rom(self.reg_pc + 2);
-                self.h = byte2;
-                self.l = byte1;
+                self.reg_hl.h = byte2;
+                self.reg_hl.l = byte1;
                 self.reg_pc += 3;
             },
             //ld c
             0xe => {
                 let byte = read_byte_from_rom(self.reg_pc +1);
-                self.c = byte;
+                self.reg_bc.c = byte;
                 self.reg_pc += 2;
             },
             //ld b
             0x6 => {
                 let byte = read_byte_from_rom(self.reg_pc +1);
-                self.b = byte;
+                self.reg_bc.b = byte;
                 self.reg_pc += 2;
             },
             //ld hl, a
             0x32 => {
                 //Save A at (HL) and decrement HL
-                let hl = (self.a as u16).wrapping_sub(1);
-                self.h = (hl >> 8) as u8;
-                self.l = hl as u8;
+                //TODO: implement overflow (based on reg f: p/v bit?)
+                let a = (self.reg_af.a as u16).wrapping_sub(1);
+                self.reg_hl = HL {h: (a >> 8) as u8, l: a as u8};
                 self.reg_pc += 1;
             },
             //dec b
             0x5 => {
-                self.b = self.b.wrapping_sub(1);
+                self.reg_bc.b = self.reg_bc.b.wrapping_sub(1);
                 self.reg_pc += 1;
+            },
+            //jr nz
+            //TODO: check z bit of reg f and jump if not zero
+            0x20 => {
+                //TODO: check if issues with signed bit
+                let byte:u8 = read_byte_from_rom(self.reg_pc + 1);
+                let signed_add = self.reg_pc as i16 + byte as i16;
+                self.reg_pc = signed_add as u16;
+            },
+            0x1e => {
+                let byte = read_byte_from_rom(self.reg_pc + 1);
+                self.reg_de.e = byte;
+                self.reg_pc += 2;
             }
             _=> {
                 println!("{:?}", self);
-                panic!("Unrecognized opcode: {:#x}", opcode);
+                panic!("Unrecognized opcode: {:#x}{:#x}{:#x}", opcode, read_byte_from_rom(self.reg_pc + 1), read_byte_from_rom(self.reg_pc + 2));
             }
         }
     }
