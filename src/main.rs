@@ -10,6 +10,3 @@ fn main() {
         cpu.process(&mut memory);
     }
 }
-
-
-

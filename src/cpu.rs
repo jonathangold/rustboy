@@ -42,6 +42,14 @@ impl Cpu {
             0x3c => {
                 self.af.a += 1;
                 self.pc += 1;
+
+                //set flags
+                self.af.f.n = false;
+                if self.af.a == 0 {self.af.f.z = true;}
+                //check for half carry
+                if (((self.af.a - 1) & 0x0F) + (1 & 0x0F)) == 0x10 {
+                    self.af.f.h = true;
+                }
             }
             //jp nz
             0xc3 => {
@@ -54,7 +62,9 @@ impl Cpu {
             }
             //ret
             //- - - -
-           _ => {panic!("unrecognized opcode: {:#x}", opcode)}
+           _ => {
+               println!("{:#?}", self);
+               panic!("unrecognized opcode: {:#x}", opcode)}
         }       
     }
 }
