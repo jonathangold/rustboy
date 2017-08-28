@@ -26,10 +26,10 @@ impl Memory {
     }
 
     fn read_rom(&self, counter:u16) -> u8 {
-    let filename = env::args().nth(1).unwrap();
-    let mut file = fs::File::open(&filename).unwrap();
-    let mut file_buf = Vec::new();
-    file.read_to_end(&mut file_buf).unwrap();
-    file_buf[counter as usize]
-}
+        let filename = env::args().nth(1).unwrap();
+        let mut file = fs::File::open(&filename).unwrap();
+        let mut file_buf = Vec::new();
+        file.read_to_end(&mut file_buf).unwrap();
+        file_buf[counter as usize]
+    }
 }
