@@ -1,35 +1,14 @@
 use memory;
 
 #[derive(Debug, Default)]
-pub struct RegF {
-    pub z: bool,
-    pub n: bool,
-    pub h: bool,
-    pub c: bool
-}
-
-
-#[derive(Debug, Default)]
-pub struct DoubleReg {
-    pub bit_hi: u8,
-    pub bit_lo: u8
-}
-
-#[derive(Debug, Default)]
-pub struct RegAF {
-    pub a: u8,
-    pub f: RegF
-}
-
-#[derive(Debug, Default)]
 pub struct Cpu {
     pub pc: u16,
     pub sp: u16,
 
     pub af: RegAF,
-    pub bc: DoubleReg,
-    pub de: DoubleReg,
-    pub hl: DoubleReg,
+    pub bc: RegBC,
+    pub de: RegDE,
+    pub hl: RegHL,
 }
 
 impl Cpu {
@@ -47,7 +26,7 @@ impl Cpu {
                 self.af.f.n = false;
                 if self.af.a == 0 {self.af.f.z = true;}
                 //check for half carry
-                if (((self.af.a - 1) & 0x0F) + (1 & 0x0F)) == 0x10 {
+                if (((self.af.a - 1) & 0x0F) + (1 & 0x0F) & 0x10) == 0x10 {
                     self.af.f.h = true;
                 }
             }
@@ -68,3 +47,37 @@ impl Cpu {
         }       
     }
 }
+
+#[derive(Debug, Default)]
+pub struct RegF {
+    pub z: bool,
+    pub n: bool,
+    pub h: bool,
+    pub c: bool
+}
+
+#[derive(Debug, Default)]
+pub struct RegBC {
+    pub b: u8,
+    pub c: u8
+}
+
+#[derive(Debug, Default)]
+pub struct RegDE {
+    pub d: u8,
+    pub e: u8
+}
+
+#[derive(Debug, Default)]
+pub struct RegHL {
+    pub h: u8,
+    pub l: u8
+}
+
+#[derive(Debug, Default)]
+pub struct RegAF {
+    pub a: u8,
+    pub f: RegF
+}
+
+
