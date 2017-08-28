@@ -33,7 +33,7 @@ impl Cpu {
             //jp nz
             0xc3 => {
                 if self.af.f.z == false {
-                    let addr = memory.read_rom_16(self.pc + 1);
+                    let addr = memory.read_16(self.pc + 1);
                     self.pc = addr;
                 } else {
                     self.pc += 2;        
@@ -41,6 +41,21 @@ impl Cpu {
             }
             //ret
             //- - - -
+            0xc9 => {
+                self.pc = memory.read_16(self.sp - 2);
+                self.sp += 2;
+            }
+            //nop
+            0x0 => {
+                self.pc +=1;
+            },
+            //or b
+            0xB0 => {
+                let data = memory.contents[(self.pc + 1) as usize];
+                self.bc.b = self.bc.b | data;
+                if self.bc.b == 0 { self.af.f.z = true; }
+                self.pc += 2;
+            }
            _ => {
                println!("{:#?}", self);
                panic!("unrecognized opcode: {:#x}", opcode)}

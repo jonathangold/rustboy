@@ -9,18 +9,19 @@ pub struct Memory {
 impl Memory {
     
     pub fn new() -> Memory {
-        Memory { contents:  vec![0; 0xFFFF].into_boxed_slice() }
+        Memory { contents:  vec![0; 0xFFFF + 1].into_boxed_slice() }
     }
 
     pub fn read_address(&mut self, input:u16) -> u8 {
         match input {
+            0x0000...0x00FF => {self.contents[input as usize]}
             0x0100...0x7FFF => {self.read_rom(input - 0x100)}
-            0xFF80...0xFFFE => {self.contents[input as usize]}
+            0x8000...0xFFFF => {self.contents[input as usize]}
             _ => {panic!("Unrecognized Address: {:#x}", input)}
         }
     }
     
-    pub fn read_rom_16(&mut self, addr: u16) -> u16 {
+    pub fn read_16(&mut self, addr: u16) -> u16 {
         let bit_lo = self.read_address(addr) as u16;
         let bit_hi = (self.read_address(addr + 1) as u16) << 8;
         bit_hi + bit_lo
