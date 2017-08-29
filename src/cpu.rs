@@ -19,16 +19,12 @@ impl Cpu {
             //inc a
             //Z 0 H -
             0x3c => {
+                self.af.f.z = self.zero(self.af.a, 1);
+                self.af.f.n = false;
+                self.af.f.h = self.halfCarry(self.af.a, 1);
+
                 self.af.a += 1;
                 self.pc += 1;
-
-                //set flags
-                self.af.f.n = false;
-                if self.af.a == 0 {self.af.f.z = true;}
-                //check for half carry
-                if (((self.af.a - 1) & 0x0F) + (1 & 0x0F) & 0x10) == 0x10 {
-                    self.af.f.h = true;
-                }
             }
             //jp nz
             0xc3 => {
@@ -45,21 +41,46 @@ impl Cpu {
                 self.pc = memory.read_16(self.sp - 2);
                 self.sp += 2;
             }
-            //nop
-            0x0 => {
-                self.pc +=1;
-            },
+            //add a, b
+            //Z 0 H C
+            0x80 => {
+                self.af.f.z = self.zero(self.af.a, self.bc.b);
+                self.af.f.n = false;
+                self.af.f.h = self.halfCarry(self.af.a, self.bc.b);
+                self.af.f.c = self.carry(self.af.a, self.bc.b);
+
+                self.af.a = self.af.a + self.bc.b;
+                self.pc += 1;
+            }
+
             //or b
+            //Z 0 0 0
             0xB0 => {
                 let data = memory.contents[(self.pc + 1) as usize];
                 self.bc.b = self.bc.b | data;
-                if self.bc.b == 0 { self.af.f.z = true; }
                 self.pc += 2;
             }
+            //nop
+            0x0 => {
+                self.pc +=1;
+            }
+
            _ => {
                println!("{:#?}", self);
                panic!("unrecognized opcode: {:#x}", opcode)}
         }       
+    }
+
+    fn halfCarry(&self, lhs:u8, rhs:u8) -> bool {
+        ((lhs & 0x0F) + (rhs & 0x0F) & 0x10) == 0x10
+    }
+
+    fn carry(&self, lhs:u8, rhs:u8) -> bool {
+        lhs as u16 + rhs as u16 > 255
+    }
+
+    fn zero(&self, lhs:u8, rhs:u8) -> bool { 
+        lhs + rhs == 0 
     }
 }
 
