@@ -20,9 +20,27 @@ pub struct Cpu {
 
 impl Cpu {
     pub fn process(&mut self, memory: &mut memory::Memory) {
+            if memory.read_address(0xFFFF) != 0 {
+                panic!("interrupt: {:#x}", memory.read_address(0xFFFF))
+            }
         let opcode = memory.read_address(self.pc);
         println!("{:#x}: {:#x}", self.pc, opcode);
         match opcode {
+            //jp a16
+            //- - - -
+            0xc3 => {
+                    let addr = memory.read_16(self.pc + 1);
+                    self.pc = addr;
+            }
+            //pop (hl)
+            //pop to hl
+            0xe1 => {
+                //TODO
+                let data = memory.read_16(self.sp);
+                self.write_hl(data);
+                self.sp += 2;
+                self.pc += 1
+            }
             //inc a
             //Z 0 H -
             0x3c => {
@@ -49,12 +67,7 @@ impl Cpu {
 
                 self.pc += 1;
             }
-            //jp a16
-            //- - - -
-            0xc3 => {
-                    let addr = memory.read_16(self.pc + 1);
-                    self.pc = addr;
-            }
+            
             //reti
             //- - - -
             0xd9 => {
@@ -111,6 +124,11 @@ impl Cpu {
 
     fn read_reg_16(&self, reg_hi:u8, reg_lo:u8) -> u16 {
         ((reg_hi as u16) << 8) + reg_lo as u16
+    }
+
+    fn write_hl(&mut self, data:u16) {
+        self.h = ((data & 0xFF00) >> 8) as u8;
+        self.l = data as u8;
     }
 
     fn halfCarry(&self, lhs:u8, rhs:u8) -> bool {

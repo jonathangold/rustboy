@@ -14,7 +14,7 @@ impl Memory {
 
     pub fn read_address(&mut self, input:u16) -> u8 {
         match input {
-            // 0x0000...0x00FF => {self.contents[input as usize]}
+            0x0000...0x00FF => {self.contents[input as usize]}
             0x0100...0x7FFF => {self.read_rom(input - 0x100)}
             0x8000...0xFFFF => {self.contents[input as usize]}
             _ => {panic!("Unrecognized Address: {:#x}", input)}
