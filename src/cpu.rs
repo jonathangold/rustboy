@@ -2,20 +2,20 @@ use memory;
 
 #[derive(Debug, Default)]
 pub struct Cpu {
-    pub pc: u16,
-    pub sp: u16,
+    pc: u16,
+    sp: u16,
 
-    pub a: u8,
-    pub f: RegF,
+    a: u8,
+    f: RegF,
 
-    pub b: u8,
-    pub c: u8,
+    b: u8,
+    c: u8,
 
-    pub d: u8,
-    pub e: u8,
+    d: u8,
+    e: u8,
 
-    pub h: u8,
-    pub l: u8
+    h: u8,
+    l: u8
 }
 
 impl Cpu {
@@ -54,7 +54,6 @@ impl Cpu {
             0xc3 => {
                     let addr = memory.read_16(self.pc + 1);
                     self.pc = addr;
-                    self.pc += 2;        
             }
             //reti
             //- - - -
@@ -98,6 +97,17 @@ impl Cpu {
                panic!("unrecognized opcode: {:#x}", opcode)}
         }       
     }
+    pub fn init(&mut self) {
+        self.pc = 0x0100;
+        self.sp = 0xFFFE;
+        self.a = 0x01;
+        self.f.c = true;
+        self.f.h = true;
+        self.f.z = true;
+        self.c = 0x13;
+        self.h = 0x01;
+        self.l = 0x4d;
+    }
 
     fn read_reg_16(&self, reg_hi:u8, reg_lo:u8) -> u16 {
         ((reg_hi as u16) << 8) + reg_lo as u16
@@ -117,9 +127,9 @@ impl Cpu {
 }
 
 #[derive(Debug, Default)]
-pub struct RegF {
-    pub z: bool,
-    pub n: bool,
-    pub h: bool,
-    pub c: bool
+struct RegF {
+    z: bool,
+    n: bool,
+    h: bool,
+    c: bool
 }
