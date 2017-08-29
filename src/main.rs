@@ -6,11 +6,13 @@ fn main() {
     let mut cpu:cpu::Cpu = Default::default();
     cpu.pc = 0x0100;
     cpu.sp = 0xFFFE;
-    cpu.af.a = 0x01;
-    cpu.af.f.c = true;
-    cpu.bc.c = 0x13;
-    cpu.hl.h = 0x01;
-    cpu.hl.l = 0x4d;
+    cpu.a = 0x01;
+    cpu.f.c = true;
+    cpu.f.h = true;
+    cpu.f.z = true;
+    cpu.c = 0x13;
+    cpu.h = 0x01;
+    cpu.l = 0x4d;
 
     memory.contents[0xFF10] = 0x80;
     memory.contents[0xFF11] = 0xBF;

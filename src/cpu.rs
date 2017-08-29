@@ -5,35 +5,63 @@ pub struct Cpu {
     pub pc: u16,
     pub sp: u16,
 
-    pub af: RegAF,
-    pub bc: RegBC,
-    pub de: RegDE,
-    pub hl: RegHL,
+    pub a: u8,
+    pub f: RegF,
+
+    pub b: u8,
+    pub c: u8,
+
+    pub d: u8,
+    pub e: u8,
+
+    pub h: u8,
+    pub l: u8
 }
 
 impl Cpu {
     pub fn process(&mut self, memory: &mut memory::Memory) {
         let opcode = memory.read_address(self.pc);
-        println!("{:#x}", opcode);
+        println!("{:#x}: {:#x}", self.pc, opcode);
         match opcode {
             //inc a
             //Z 0 H -
             0x3c => {
-                self.af.f.z = self.zero(self.af.a, 1);
-                self.af.f.n = false;
-                self.af.f.h = self.halfCarry(self.af.a, 1);
+                self.f.z = self.zero(self.a, 1);
+                self.f.n = false;
+                self.f.h = self.halfCarry(self.a, 1);
 
-                self.af.a += 1;
+                self.a += 1;
                 self.pc += 1;
             }
-            //jp nz
+            //ld (bc),a
+            //- - - -
+            0x2 => {
+                let addr = self.read_reg_16(self.b, self.c);
+                self.a = memory.read_address(addr);
+                self.pc += 3;
+            }
+            //cp a
+            0xbf => {
+                self.f.z = true;
+                self.f.n = true;
+                self.f.h = false;
+                self.f.h = false;
+
+                self.pc += 1;
+            }
+            //jp a16
+            //- - - -
             0xc3 => {
-                if self.af.f.z == false {
                     let addr = memory.read_16(self.pc + 1);
                     self.pc = addr;
-                } else {
                     self.pc += 2;        
-                }
+            }
+            //reti
+            //- - - -
+            0xd9 => {
+                self.pc = memory.read_16(self.sp - 2);
+                self.sp += 2;
+                //TODO: set intterupts
             }
             //ret
             //- - - -
@@ -44,12 +72,12 @@ impl Cpu {
             //add a, b
             //Z 0 H C
             0x80 => {
-                self.af.f.z = self.zero(self.af.a, self.bc.b);
-                self.af.f.n = false;
-                self.af.f.h = self.halfCarry(self.af.a, self.bc.b);
-                self.af.f.c = self.carry(self.af.a, self.bc.b);
+                self.f.z = self.zero(self.a, self.b);
+                self.f.n = false;
+                self.f.h = self.halfCarry(self.a, self.b);
+                self.f.c = self.carry(self.a, self.b);
 
-                self.af.a = self.af.a + self.bc.b;
+                self.a = self.a + self.b;
                 self.pc += 1;
             }
 
@@ -57,7 +85,7 @@ impl Cpu {
             //Z 0 0 0
             0xB0 => {
                 let data = memory.contents[(self.pc + 1) as usize];
-                self.bc.b = self.bc.b | data;
+                self.b = self.b | data;
                 self.pc += 2;
             }
             //nop
@@ -69,6 +97,10 @@ impl Cpu {
                println!("{:#?}", self);
                panic!("unrecognized opcode: {:#x}", opcode)}
         }       
+    }
+
+    fn read_reg_16(&self, reg_hi:u8, reg_lo:u8) -> u16 {
+        ((reg_hi as u16) << 8) + reg_lo as u16
     }
 
     fn halfCarry(&self, lhs:u8, rhs:u8) -> bool {
@@ -91,29 +123,3 @@ pub struct RegF {
     pub h: bool,
     pub c: bool
 }
-
-#[derive(Debug, Default)]
-pub struct RegBC {
-    pub b: u8,
-    pub c: u8
-}
-
-#[derive(Debug, Default)]
-pub struct RegDE {
-    pub d: u8,
-    pub e: u8
-}
-
-#[derive(Debug, Default)]
-pub struct RegHL {
-    pub h: u8,
-    pub l: u8
-}
-
-#[derive(Debug, Default)]
-pub struct RegAF {
-    pub a: u8,
-    pub f: RegF
-}
-
-
