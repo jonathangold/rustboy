@@ -1,6 +1,8 @@
 use memory;
 
-#[derive(Debug, Default)]
+use std::fmt;
+
+#[derive(Default)]
 pub struct Cpu {
     pc: u16,
     sp: u16,
@@ -45,7 +47,7 @@ impl Cpu {
             0x3c => {
                 self.f.z = self.zero(self.a, 1);
                 self.f.n = false;
-                self.f.h = self.halfCarry(self.a, 1);
+                self.f.h = self.half_carry(self.a, 1);
 
                 self.a += 1;
                 self.pc += 1;
@@ -85,7 +87,7 @@ impl Cpu {
             0x80 => {
                 self.f.z = self.zero(self.a, self.b);
                 self.f.n = false;
-                self.f.h = self.halfCarry(self.a, self.b);
+                self.f.h = self.half_carry(self.a, self.b);
                 self.f.c = self.carry(self.a, self.b);
 
                 self.a = self.a + self.b;
@@ -105,7 +107,6 @@ impl Cpu {
             }
 
            _ => {
-               println!("{:#b}", self.f.read());
                println!("{:#?}", self);
                panic!("unrecognized opcode: {:#x}", opcode)}
         }       
@@ -131,7 +132,7 @@ impl Cpu {
         self.l = data as u8;
     }
 
-    fn halfCarry(&self, lhs:u8, rhs:u8) -> bool {
+    fn half_carry(&self, lhs:u8, rhs:u8) -> bool {
         ((lhs & 0x0F) + (rhs & 0x0F) & 0x10) == 0x10
     }
 
@@ -143,15 +144,34 @@ impl Cpu {
         lhs + rhs == 0 
     }
 }
-
-#[derive(Debug, Default)]
+impl fmt::Debug for Cpu {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "
+               PC: {:#x} SP: {:#x}
+               A: {:#x} F: {:#x}
+               B: {:#x} C: {:#x}
+               D: {:#x} E: {:#x}
+               H: {:#x} L: {:#x}", 
+               self.pc, self.sp, 
+               self.a, self.f.read(),
+               self.b, self.c,
+               self.d, self.e,
+               self.h, self.l
+               )
+    }
+}
+#[derive(Default)]
 struct RegF {
     z: bool,
     n: bool,
     h: bool,
     c: bool
 }
-
+impl fmt::Debug for RegF {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.read())
+    }
+}
 impl RegF {
     fn write(&mut self, data: u8) {
         self.z = (data & 0b1000_0000) != 0;
