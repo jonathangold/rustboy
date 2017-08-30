@@ -35,7 +35,6 @@ impl Cpu {
             //pop (hl)
             //pop to hl
             0xe1 => {
-                //TODO
                 let data = memory.read_16(self.sp);
                 self.write_hl(data);
                 self.sp += 2;
@@ -106,6 +105,7 @@ impl Cpu {
             }
 
            _ => {
+               println!("{:#b}", self.f.read());
                println!("{:#?}", self);
                panic!("unrecognized opcode: {:#x}", opcode)}
         }       
@@ -150,4 +150,21 @@ struct RegF {
     n: bool,
     h: bool,
     c: bool
+}
+
+impl RegF {
+    fn write(&mut self, data: u8) {
+        self.z = (data & 0b1000_0000) != 0;
+        self.n = (data & 0b0100_0000) != 0;
+        self.h = (data & 0b0010_0000) != 0;
+        self.c = (data & 0b0001_0000) != 0;
+    }
+    fn read(&self) -> u8 {
+        let mut flags = 0x00;
+        if self.z == true {flags = flags + 0b1000_0000};
+        if self.n == true {flags = flags + 0b0100_0000};
+        if self.h == true {flags = flags + 0b0010_0000};
+        if self.c == true {flags = flags + 0b0001_0000};
+        flags
+    }
 }
