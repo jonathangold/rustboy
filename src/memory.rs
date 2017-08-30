@@ -39,7 +39,14 @@ impl Memory {
             _ => {panic!("Unrecognized Address: {:#x}", input)}
         }
     }
-    
+
+    pub fn write_16(&mut self, addr:u16, data:u16) {
+        let bit_lo = data as u8;
+        let bit_hi = (data >> 8) as u8;
+        self.contents[addr as usize] = bit_hi;
+        self.contents[(addr + 1) as usize] = bit_lo;
+    }
+
     pub fn read_16(&mut self, addr: u16) -> u16 {
         let bit_lo = self.read_address(addr) as u16;
         let bit_hi = (self.read_address(addr + 1) as u16) << 8;
