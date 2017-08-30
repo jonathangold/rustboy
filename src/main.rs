@@ -4,7 +4,7 @@ mod cpu;
 fn main() {
     let mut memory = memory::Memory::new();
     let mut cpu:cpu::Cpu = Default::default();
-    cpu.init();
+/*    cpu.init();
 
     memory.contents[0xFF10] = 0x80;
     memory.contents[0xFF11] = 0xBF;
@@ -25,7 +25,7 @@ fn main() {
     memory.contents[0xFF47] = 0xFc;
     memory.contents[0xFF48] = 0xFF;
     memory.contents[0xFF49] = 0xFF;
-
+*/
     loop {
 //        let time = std::time::Duration::from_secs(1);
 //        std::thread::sleep(time);

@@ -28,19 +28,94 @@ impl Cpu {
         let opcode = memory.read_address(self.pc);
         println!("{:#x}: {:#x}", self.pc, opcode);
         match opcode {
+            //LD SP, d16
+            0x31 => { 
+                self.sp = memory.read_16(self.pc + 1);
+                self.pc += 3;
+            }
+            //XOR A
+            //Z - - -
+            0xaf => {
+                self.a = 0x00;
+                self.f.write(0b1000_0000);
+                self.pc += 1;
+            }
+            //LD HL, d16
+            //- - - -
+            0x21 => {
+                let data = memory.read_16(self.pc +1);
+                self.write_hl(data);
+                self.pc += 3;
+            }
+            //LD [HL-}, A
+            //- - - -
+            0x32 => {
+                let addr = self.read_reg_16(self.h, self.l);
+                self.write_hl(addr - 1);
+                memory.contents[addr as usize] = self.a;
+                self.pc += 1;
+            }
+            //JR NZ 16
+            //
+            0x20 => {
+                if self.f.z == false {
+                    let offset = memory.read_address(self.pc +1) as i32 + 0xFFFF_FF00;
+                    let target = ((self.pc as i32) + 2 + offset) as u16;
+                    self.pc = target;
+                } else { 
+                    self.pc += 2;
+                }
+            }
+            //LD C,d8
+            //- - - -
+            0xe => {
+                self.c = memory.read_address(self.pc + 1);
+                self.pc += 2;
+            }
+            //LD A,d8
+            //- - - -
+            0x3e => {
+                self.a = memory.read_address(self.pc + 1);
+                self.pc += 2;
+            }
+            //LD (C), A
+            //- - - -
+            0xe2 => {
+                let addr = 0xFF00 + self.c;
+                memory.contents[addr as usize] = self.a;
+                self.pc += 1;
+            }
+            //INC C
+            //Z 0 H -
+            0xc => {
+                self.f.z = self.zero(self.c, 1);
+                self.f.n = false;
+                self.f.h = self.half_carry(self.c, 1);
+
+                self.c += 1;
+                self.pc += 1;
+            }
             //jp a16
             //- - - -
             0xc3 => {
-                    let addr = memory.read_16(self.pc + 1);
-                    self.pc = addr;
+                let addr = memory.read_16(self.pc + 1);
+                self.pc = addr;
             }
             //pop (hl)
-            //pop to hl
+            //- - - -
             0xe1 => {
                 let data = memory.read_16(self.sp);
                 self.write_hl(data);
                 self.sp += 2;
                 self.pc += 1
+            }
+            //pop (af)
+            //
+            0xf1 => {
+                let data = memory.read_16(self.sp);
+                self.write_af(data);
+                self.sp += 2;
+                self.pc += 1 
             }
             //inc a
             //Z 0 H -
@@ -106,6 +181,22 @@ impl Cpu {
                 self.pc +=1;
             }
 
+            //PREFIX CB
+            //
+            0xcb => {
+                let inst = memory.read_address(self.pc + 1);
+                self.pc += 2;
+                match inst {
+                    0x7c => {
+                        if 0b1000_0000 & self.h == 0b1000_0000 {
+                            self.f.z = false;
+                        } else {
+                            self.f.z = true;
+                        }
+                    }
+                    _ => {panic!("Unknown CB instruction")}
+                }
+            }
            _ => {
                println!("{:#?}", self);
                panic!("unrecognized opcode: {:#x}", opcode)}
@@ -127,11 +218,16 @@ impl Cpu {
         ((reg_hi as u16) << 8) + reg_lo as u16
     }
 
+    fn write_af(&mut self, data:u16) {
+        self.a = ((data & 0xFF00) >> 8) as u8;
+        self.f.write(data as u8);
+    }
+
     fn write_hl(&mut self, data:u16) {
         self.h = ((data & 0xFF00) >> 8) as u8;
         self.l = data as u8;
     }
-
+    
     fn half_carry(&self, lhs:u8, rhs:u8) -> bool {
         ((lhs & 0x0F) + (rhs & 0x0F) & 0x10) == 0x10
     }
@@ -144,11 +240,12 @@ impl Cpu {
         lhs + rhs == 0 
     }
 }
+
 impl fmt::Debug for Cpu {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "
                PC: {:#x} SP: {:#x}
-               A: {:#x} F: {:#x}
+               A: {:#x} F: {:#b}
                B: {:#x} C: {:#x}
                D: {:#x} E: {:#x}
                H: {:#x} L: {:#x}", 
