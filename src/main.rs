@@ -27,7 +27,7 @@ fn main() {
     memory.contents[0xFF49] = 0xFF;
 */
     loop {
-//        let time = std::time::Duration::from_secs(1);
+//        let time = std::time::Duration::from_millis(2);
 //        std::thread::sleep(time);
         cpu.process(&mut memory);
     }

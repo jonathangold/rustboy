@@ -43,8 +43,8 @@ impl Memory {
     pub fn write_16(&mut self, addr:u16, data:u16) {
         let bit_lo = data as u8;
         let bit_hi = (data >> 8) as u8;
-        self.contents[addr as usize] = bit_hi;
-        self.contents[(addr + 1) as usize] = bit_lo;
+        self.contents[(addr + 1) as usize] = bit_hi;
+        self.contents[addr as usize] = bit_lo;
     }
 
     pub fn read_16(&mut self, addr: u16) -> u16 {

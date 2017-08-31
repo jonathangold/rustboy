@@ -81,7 +81,7 @@ impl Cpu {
             //LD (C), A
             //- - - -
             0xe2 => {
-                let addr = 0xFF00 + self.c;
+                let addr = 0xFF00 + self.c as u16;
                 memory.contents[addr as usize] = self.a;
                 self.pc += 1;
             }
@@ -90,7 +90,7 @@ impl Cpu {
             0xc => {
                 self.f.z = self.zero(self.c, 1);
                 self.f.n = false;
-                self.f.h = self.half_carry(self.c, 1);
+                self.f.h = self.half_carry_addition(self.c, 1);
 
                 self.c += 1;
                 self.pc += 1;
@@ -129,7 +129,7 @@ impl Cpu {
             0xcd => {
                 let addr = memory.read_16(self.pc +1);
                 self.sp -= 2;
-                memory.write_16(self.sp, self.pc + 1);
+                memory.write_16(self.sp, self.pc + 3);
                 self.pc = addr;
             }
             //LD C, A
@@ -168,6 +168,49 @@ impl Cpu {
                 self.sp += 2;
                 self.pc += 1;
             }
+            //DEC B
+            //Z 1 H -
+            0x5 => {
+                self.b -= 1;
+                self.f.n = true;
+                if self.b == 0 {self.f.z = true} else {self.f.z = false}
+                self.half_carry_subtraction(self.b + 1, self.b);
+                self.pc += 1
+            }
+            //LD (HL+),A
+            //- - - -
+            0x22 => {
+                let addr = self.read_reg_16(self.h, self.l);
+                memory.contents[addr as usize] = self.a;
+                self.write_hl(addr + 1);
+                self.pc += 1;
+            }
+            //INC HL
+            //- - - -
+            0x23 => {
+                let result = self.read_reg_16(self.h, self.l) + 1;
+                self.write_hl(result);
+                self.pc += 1;
+            }
+            //RET
+            //- - - -
+            0xc9 => {
+                self.pc = memory.read_16(self.sp);
+                self.sp += 2;
+            }
+            //INC DE
+            //- - - -
+            0x13 => {
+                let result = self.read_reg_16(self.d, self.e) + 1;
+                self.write_de(result);
+                self.pc += 1;
+            }
+            //LD A, E
+            //- - - -
+            0x7b => {
+                self.a = self.e;
+                self.pc += 1;
+            }
             //jp a16
             //- - - -
             0xc3 => {
@@ -195,7 +238,7 @@ impl Cpu {
             0x3c => {
                 self.f.z = self.zero(self.a, 1);
                 self.f.n = false;
-                self.f.h = self.half_carry(self.a, 1);
+                self.f.h = self.half_carry_addition(self.a, 1);
 
                 self.a += 1;
                 self.pc += 1;
@@ -224,18 +267,13 @@ impl Cpu {
                 self.sp += 2;
                 //TODO: set intterupts
             }
-            //ret
-            //- - - -
-            0xc9 => {
-                self.pc = memory.read_16(self.sp - 2);
-                self.sp += 2;
-            }
+            
             //add a, b
             //Z 0 H C
             0x80 => {
                 self.f.z = self.zero(self.a, self.b);
                 self.f.n = false;
-                self.f.h = self.half_carry(self.a, self.b);
+                self.f.h = self.half_carry_addition(self.a, self.b);
                 self.f.c = self.carry(self.a, self.b);
 
                 self.a = self.a + self.b;
@@ -316,8 +354,12 @@ fn write_hl(&mut self, data:u16) {
     self.l = data as u8;
 }
 
-fn half_carry(&self, lhs:u8, rhs:u8) -> bool {
+fn half_carry_addition(&self, lhs:u8, rhs:u8) -> bool {
     ((lhs & 0x0F) + (rhs & 0x0F) & 0x10) == 0x10
+}
+
+fn half_carry_subtraction(&self, lhs:u8, rhs:u8) -> bool {
+    ((lhs & 0x0F) - (rhs & 0x0F) & 0b0000_1000) == 0b0000_1000
 }
 
 fn carry(&self, lhs:u8, rhs:u8) -> bool {
