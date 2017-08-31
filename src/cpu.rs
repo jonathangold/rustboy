@@ -1,5 +1,6 @@
 use memory;
 
+use std;
 use std::fmt;
 
 #[derive(Default)]
@@ -58,6 +59,7 @@ impl Cpu {
             //JR NZ r8
             //- - - -
             0x20 => {
+                println!("{:#?}", self);
                 if !self.f.z {
                     let offset = memory.read_address(self.pc +1) as i8;
                     let target = ((self.pc as i32) + offset as i32) as u16;
@@ -205,15 +207,35 @@ impl Cpu {
                 self.write_de(result);
                 self.pc += 1;
             }
-            //LD A, E
+            //LD A, 2
             //- - - -
             0x7b => {
                 self.a = self.e;
                 self.pc += 1;
             }
+            //CP d8
+            //Z 1 H C
+            0xfe => {
+                let addr = 0xFF00 + memory.read_address(self.pc + 1) as u16;
+                let data = memory.read_address(addr);
+                if (self.a - data) == 0 {
+                    self.f.z = true;
+                } else {
+                    self.f.z = false;
+                }
+                self.f.n = true;
+                self.half_carry_subtraction(self.a, data);
+                if (self.a >= 128 && data < 128){
+                    self.f.c = true;
+                } else {
+                    self.f.c = false;
+                } 
+                self.pc += 2;
+                println!("{:x} {:x} {}", self.a, data, self.f.z);
+            }
             //XOR d8
             //Z 0 0 0
-            0xfe => {
+            0xee => {
                 let data = memory.read_address(self.pc + 1);
                 self.a = data ^ self.a;
                 self.f.write(0);
@@ -252,6 +274,72 @@ impl Cpu {
                 } else { 
                     self.pc += 2;
                 }
+            }
+            //DEC D
+            //Z 1 H -
+            0xd => {
+                self.d -= 1;
+                self.f.n = true;
+                if self.d == 0 {self.f.z = true} else {self.f.z = false}
+                self.half_carry_subtraction(self.d + 1, self.d);
+                self.pc += 1
+
+            }
+            //LD H,A
+            //- - - -
+            0x67 => {
+                self.h = self.a;
+                self.pc += 1;
+            }
+            //LD D,A
+            //- - - -
+            0x57 => {
+                self.d = self.a;
+                self.pc += 1;
+            }
+            //INC B
+            //Z 0 H -
+            0x4 => {
+                self.f.z = self.zero(self.b, 1);
+                self.f.n = false;
+                self.f.h = self.half_carry_addition(self.b, 1);
+
+                self.b += 1;
+                self.pc += 1;
+            }
+            //LD E, d8
+            //- - - -
+            0x1e => {
+                self.e = memory.read_address(self.pc + 1);
+                self.pc += 2;
+            }
+            //LDH a, (a8)
+            //- - - -
+            0xf0 => {
+                let addr = 0xFF00 + memory.read_address(self.pc + 1) as u16;
+                self.a = memory.read_address(addr);
+                println!("{:x} {:x} {:x}", addr, memory.read_address(addr), memory.contents[addr as usize]);
+                self.pc += 2;
+            }
+            //SUB B
+            //Z 1 H C
+            //TODO: Move carry to function
+            0x90 => {
+                if (self.a - self.b) == 0 {
+                    self.f.z = true;
+                } else {
+                    self.f.z = false;
+                }
+                self.f.n = true;
+                self.half_carry_subtraction(self.a, self.b);
+                if (self.a >= 128 && self.b < 128){
+                    self.f.c = true;
+                } else {
+                    self.f.c = false;
+                }
+
+                self.a = self.a - self.b;
+                self.pc += 1
             }
             //jp a16
             //- - - -
@@ -309,7 +397,7 @@ impl Cpu {
                 self.sp += 2;
                 //TODO: set intterupts
             }
-            
+
             //add a, b
             //Z 0 H C
             0x80 => {
