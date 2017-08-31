@@ -55,12 +55,12 @@ impl Cpu {
                 self.write_hl(addr - 1);
                 self.pc += 1;
             }
-            //JR NZ 16
-            //
+            //JR NZ r8
+            //- - - -
             0x20 => {
-                if self.f.z == false {
-                    let offset = memory.read_address(self.pc +1) as i32 + 0xFFFF_FF00;
-                    let target = ((self.pc as i32) + offset) as u16;
+                if !self.f.z {
+                    let offset = memory.read_address(self.pc +1) as i8;
+                    let target = ((self.pc as i32) + offset as i32) as u16;
                     self.pc = 2 + target;
                 } else { 
                     self.pc += 2;
@@ -210,6 +210,48 @@ impl Cpu {
             0x7b => {
                 self.a = self.e;
                 self.pc += 1;
+            }
+            //XOR d8
+            //Z 0 0 0
+            0xfe => {
+                let data = memory.read_address(self.pc + 1);
+                self.a = data ^ self.a;
+                self.f.write(0);
+                if self.a == 0 {self.f.z = true}
+                self.pc += 1;
+            }
+            //LD B,E
+            //- - - -
+            0x34 => {
+                self.b = self.e;
+                self.pc += 1;
+            }
+            //LD (a16), A
+            //- - - -
+            0xea => {
+                self.a = memory.read_address(self.pc + 1);
+                self.pc += 3;
+            }
+            //DEC A
+            //Z 1 H -
+            0x3d => {
+                self.a -= 1;
+                self.f.n = true;
+                if self.a == 0 {self.f.z = true} else {self.f.z = false}
+                self.half_carry_subtraction(self.a + 1, self.a);
+                self.pc += 1
+
+            }
+            //JR Z r8
+            //- - - -
+            0x28 => {
+                if self.f.z {
+                    let offset = memory.read_address(self.pc +1) as i8;
+                    let target = ((self.pc as i32) + offset as i32) as u16;
+                    self.pc = 2 + target;
+                } else { 
+                    self.pc += 2;
+                }
             }
             //jp a16
             //- - - -
