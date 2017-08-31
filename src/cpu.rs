@@ -152,6 +152,22 @@ impl Cpu {
                 memory.write_16(self.sp, self.read_reg_16(self.b, self.c));
                 self.pc += 1;
             }
+            //RLA
+            //0 0 0 C
+            0x17 => {
+                let val = self.a;
+                self.a = self.rotate_left(val);
+                self.f.z = false;
+                self.pc += 1;
+            }
+            //POP BC
+            //- - - -
+            0xc1 => {
+                let data = memory.read_16(self.sp);
+                self.write_bc(data);
+                self.sp += 2;
+                self.pc += 1;
+            }
             //jp a16
             //- - - -
             0xc3 => {
@@ -254,11 +270,9 @@ impl Cpu {
                     //RL C
                     //Z 0 0 C
                     0x11 => {
-                        //TODO: Verify if 9 bit rotation with carry bit
-                        let mut result = self.c << 1;
-                        if self.f.c {result += 1}
-                        if self.c >> 7 == 1 {}
-                   }
+                        let val = self.c;
+                        self.c = self.rotate_left(val);
+                    }
                     _ => {panic!("Unknown CB instruction: {:#x}", inst)}
                 }
             }
@@ -268,7 +282,15 @@ impl Cpu {
             }
     }
 }
-
+fn rotate_left(&mut self, value:u8) -> u8 {
+    let mut result = value << 1;
+    if self.f.c {result += 1}
+    if value >> 7 == 1 {self.f.c = true} else {self.f.c = false}
+    if value as u8 == 0 {self.f.z = true} else {self.f.z = false}
+    self.f.n = false;
+    self.f.h = false;
+    result // & 0xFF;
+}
 
 fn read_reg_16(&self, reg_hi:u8, reg_lo:u8) -> u16 {
     ((reg_hi as u16) << 8) + reg_lo as u16
