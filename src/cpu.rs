@@ -28,6 +28,7 @@ impl Cpu {
         }
         let opcode = memory.read_address(self.pc);
         println!("{:#x}: {:#x}", self.pc, opcode);
+        println!("{:#?}", self);
         match opcode {
             //LD SP, d16
             0x31 => { 
@@ -59,7 +60,6 @@ impl Cpu {
             //JR NZ r8
             //- - - -
             0x20 => {
-                println!("{:#?}", self);
                 if !self.f.z {
                     let offset = memory.read_address(self.pc +1) as i8;
                     let target = ((self.pc as i32) + offset as i32) as u16;
@@ -179,6 +179,15 @@ impl Cpu {
                 self.half_carry_subtraction(self.b + 1, self.b);
                 self.pc += 1
             }
+            //DEC D
+            //Z 1 H -
+            0x15 => {
+                self.d -= 1;
+                self.f.n = true;
+                if self.d == 0 {self.f.z = true} else {self.f.z = false}
+                self.half_carry_subtraction(self.d + 1, self.d);
+                self.pc += 1
+            }
             //LD (HL+),A
             //- - - -
             0x22 => {
@@ -231,7 +240,6 @@ impl Cpu {
                     self.f.c = false;
                 } 
                 self.pc += 2;
-                println!("{:x} {:x} {}", self.a, data, self.f.z);
             }
             //XOR d8
             //Z 0 0 0
@@ -275,9 +283,19 @@ impl Cpu {
                     self.pc += 2;
                 }
             }
-            //DEC D
+            //DEC C
             //Z 1 H -
             0xd => {
+                self.c -= 1;
+                self.f.n = true;
+                if self.c == 0 {self.f.z = true} else {self.f.z = false}
+                self.half_carry_subtraction(self.c + 1, self.c);
+                self.pc += 1
+
+            }
+            //DEC D
+            //Z 1 H -
+            0x1d => {
                 self.d -= 1;
                 self.f.n = true;
                 if self.d == 0 {self.f.z = true} else {self.f.z = false}
@@ -291,10 +309,26 @@ impl Cpu {
                 self.h = self.a;
                 self.pc += 1;
             }
+            //LD A,H
+            //- - - -
+            0x7c => {
+                self.a - self.h;
+                self.pc += 1;
+            }
             //LD D,A
             //- - - -
             0x57 => {
                 self.d = self.a;
+                self.pc += 1;
+            }
+            //INC H
+            //Z 0 H -
+            0x24 => {
+                self.f.z = self.zero(self.h, 1);
+                self.f.n = false;
+                self.f.h = self.half_carry_addition(self.h, 1);
+
+                self.h += 1;
                 self.pc += 1;
             }
             //INC B
@@ -318,7 +352,6 @@ impl Cpu {
             0xf0 => {
                 let addr = 0xFF00 + memory.read_address(self.pc + 1) as u16;
                 self.a = memory.read_address(addr);
-                println!("{:x} {:x} {:x}", addr, memory.read_address(addr), memory.contents[addr as usize]);
                 self.pc += 2;
             }
             //SUB B
