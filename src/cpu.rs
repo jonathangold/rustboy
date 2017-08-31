@@ -255,13 +255,9 @@ impl Cpu {
                     //Z 0 0 C
                     0x11 => {
                         //TODO: Verify if 9 bit rotation with carry bit
-                        self.c = self.c.rotate_left(1);
-                        if self.c == 0 {self.f.z = true}
-                        else {self.f.z = false}
-                        self.f.n == false;
-                        self.f.h == false;
-                        if 0x01 & self.c == 1 {self.f.c = true}
-                        else {self.f.c = false}
+                        let mut result = self.c << 1;
+                        if self.f.c {result += 1}
+                        if self.c >> 7 == 1 {}
                    }
                     _ => {panic!("Unknown CB instruction: {:#x}", inst)}
                 }
