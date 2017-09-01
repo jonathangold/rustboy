@@ -23,14 +23,36 @@ pub struct Cpu {
 
 impl Cpu {
     pub fn process(&mut self, memory: &mut memory::Memory) {
-        if memory.read_address(0xFFFF) != 0 {
-            panic!("interrupt: {:#x}", memory.read_address(0xFFFF))
-        }
         let opcode = memory.read_address(self.pc);
        // println!("{:#?}", self);
        // println!("{:#x}: {:#x}", self.pc, opcode);
         match opcode {
+            //DEC BC
+            //- - - -
+            0xb => {
+                let data = self.read_reg_16(self.b, self.c);
+                self.write_bc(data - 1);
+                self.pc += 1;
+            }
+            //LD A,(HL+)
+            //- - - -
+            0x2a => {
+                let addr = self.read_reg_16(self.h, self.l);
+                self.a = memory.read_address(addr);
+                self.write_hl(addr + 1);
+                self.pc += 1;
+            }
+            //CPL
+            //- 1 1 -
+            0x2f => {
+                let result = !self.a;
+                self.a = result;
+                self.f.n = true;
+                self.f.h = true;
+                self.pc += 1;
+            }
             //LD SP, d16
+            //- - - -
             0x31 => { 
                 self.sp = memory.read_16(self.pc + 1);
                 self.pc += 3;
@@ -41,6 +63,13 @@ impl Cpu {
                 self.a = 0x00;
                 self.f.write(0b1000_0000);
                 self.pc += 1;
+            }
+            //LD BC, d16
+            //- - - -
+            0x1 => {
+                let data = memory.read_16(self.pc +1);
+                self.write_bc(data);
+                self.pc += 3;
             }
             //LD HL, d16
             //- - - -
@@ -56,6 +85,14 @@ impl Cpu {
                 memory.contents[addr as usize] = self.a;
                 self.write_hl(addr - 1);
                 self.pc += 1;
+            }
+            //LD (HL),d8
+            //- - - -
+            0x36 => {
+                let addr = self.read_reg_16(self.h, self.l);
+                let data = memory.read_address(self.pc +1);
+                memory.contents[addr as usize] = data;
+                self.pc += 2;
             }
             //JR NZ r8
             //- - - -
@@ -486,9 +523,21 @@ impl Cpu {
             0xd9 => {
                 self.pc = memory.read_16(self.sp);
                 self.sp += 2;
-                //TODO: set intterupts
+                //set intterupts
+                memory.contents[0xFFFF] = 0xFF;
             }
-
+            //EI
+            //- - - -
+            0xfb => {
+                memory.contents[0xFFFF] = 0xFF;
+                self.pc += 1;
+            }
+            //DI
+            //- - - -
+            0xf3 => {
+                memory.contents[0xFFFF] = 0x00;
+                self.pc += 1;
+            }
             //add a, b
             //Z 0 H C
             0x80 => {
@@ -500,13 +549,23 @@ impl Cpu {
                 self.a = self.a + self.b;
                 self.pc += 1;
             }
-
-            //or b
+            //OR C
             //Z 0 0 0
-            0xB0 => {
-                let data = memory.contents[(self.pc + 1) as usize];
-                self.b = self.b | data;
-                self.pc += 2;
+            0xb1 => {
+                let data = self.a | self.c;
+                self.a = data;
+                self.f.write(0x00);
+                self.f.z = self.zero(self.a);
+                self.pc += 1;
+            }
+            //OR B
+            //Z 0 0 0
+            0xb0 => {
+                let data = self.a | self.b;
+                self.a = data;
+                self.f.write(0x00);
+                self.f.z = self.zero(self.a);
+                self.pc += 1;
             }
             //nop
             0x0 => {
