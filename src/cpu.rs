@@ -5,7 +5,7 @@ use std::fmt;
 
 #[derive(Default)]
 pub struct Cpu {
-    pc: u16,
+    pub pc: u16,
     sp: u16,
 
     a: u8,
@@ -27,8 +27,8 @@ impl Cpu {
             panic!("interrupt: {:#x}", memory.read_address(0xFFFF))
         }
         let opcode = memory.read_address(self.pc);
-        println!("{:#x}: {:#x}", self.pc, opcode);
-        println!("{:#?}", self);
+       // println!("{:#?}", self);
+       // println!("{:#x}: {:#x}", self.pc, opcode);
         match opcode {
             //LD SP, d16
             0x31 => { 
@@ -68,16 +68,28 @@ impl Cpu {
                     self.pc += 2;
                 }
             }
+            //LD A,d8
+            //- - - -
+            0x3e => {
+                self.a = memory.read_address(self.pc + 1);
+                self.pc += 2;
+            }
             //LD C,d8
             //- - - -
             0xe => {
                 self.c = memory.read_address(self.pc + 1);
                 self.pc += 2;
             }
-            //LD A,d8
+            //LD D,d8
             //- - - -
-            0x3e => {
-                self.a = memory.read_address(self.pc + 1);
+            0x16 => {
+                self.d = memory.read_address(self.pc + 1);
+                self.pc += 2;
+            }
+            //LD L,d8
+            //- - - -
+            0x2e => {
+                self.l = memory.read_address(self.pc + 1);
                 self.pc += 2;
             }
             //LD (C), A
@@ -90,7 +102,7 @@ impl Cpu {
             //INC C
             //Z 0 H -
             0xc => {
-                self.f.z = self.zero(self.c, 1);
+                self.f.z = self.zero(self.c + 1);
                 self.f.n = false;
                 self.f.h = self.half_carry_addition(self.c, 1);
 
@@ -160,6 +172,13 @@ impl Cpu {
                 let val = self.a;
                 self.a = self.rotate_left(val);
                 self.f.z = false;
+                self.f.n = false;
+                self.f.h = false;
+                if (val >> 7) == 1 {
+                            self.f.c = true;
+                        } else {
+                            self.f.c = false;
+                        }
                 self.pc += 1;
             }
             //POP BC
@@ -175,8 +194,8 @@ impl Cpu {
             0x5 => {
                 self.b -= 1;
                 self.f.n = true;
-                if self.b == 0 {self.f.z = true} else {self.f.z = false}
-                self.half_carry_subtraction(self.b + 1, self.b);
+                self.f.z = self.zero(self.b);
+                self.f.h = self.half_carry_subtraction(self.b + 1, self.b);
                 self.pc += 1
             }
             //DEC D
@@ -184,8 +203,8 @@ impl Cpu {
             0x15 => {
                 self.d -= 1;
                 self.f.n = true;
-                if self.d == 0 {self.f.z = true} else {self.f.z = false}
-                self.half_carry_subtraction(self.d + 1, self.d);
+                self.f.z = self.zero(self.d);
+                self.f.h = self.half_carry_subtraction(self.d + 1, self.d);
                 self.pc += 1
             }
             //LD (HL+),A
@@ -193,7 +212,8 @@ impl Cpu {
             0x22 => {
                 let addr = self.read_reg_16(self.h, self.l);
                 memory.contents[addr as usize] = self.a;
-                self.write_hl(addr + 1);
+                let result = self.read_reg_16(self.h, self.l) + 1;
+                self.write_hl(result);
                 self.pc += 1;
             }
             //INC HL
@@ -216,16 +236,28 @@ impl Cpu {
                 self.write_de(result);
                 self.pc += 1;
             }
-            //LD A, 2
+            //LD A, B
+            //- - - -
+            0x78 => {
+                self.a = self.b;
+                self.pc += 1;
+            }
+            //LD A, E
             //- - - -
             0x7b => {
                 self.a = self.e;
                 self.pc += 1;
             }
-            //CP d8
+            //LD A, L
+            //- - - -
+            0x7d => {
+                self.a = self.l;
+                self.pc += 1;
+            }
+            //CP (HL)
             //Z 1 H C
-            0xfe => {
-                let addr = 0xFF00 + memory.read_address(self.pc + 1) as u16;
+            0xbe => {
+                let addr = self.read_reg_16(self.h, self.l);
                 let data = memory.read_address(addr);
                 if (self.a - data) == 0 {
                     self.f.z = true;
@@ -233,12 +265,23 @@ impl Cpu {
                     self.f.z = false;
                 }
                 self.f.n = true;
-                self.half_carry_subtraction(self.a, data);
-                if (self.a >= 128 && data < 128){
-                    self.f.c = true;
+                self.f.h = self.half_carry_subtraction(self.a, data);
+                self.f.c = self.carry_subtraction(self.a, data);
+                self.pc += 1;
+   
+            }
+            //CP d8
+            //Z 1 H C
+            0xfe => {
+                let data = memory.read_address(self.pc + 1);
+                if (self.a - data) == 0 {
+                    self.f.z = true;
                 } else {
-                    self.f.c = false;
-                } 
+                    self.f.z = false;
+                }
+                self.f.n = true;
+                self.f.h = self.half_carry_subtraction(self.a, data);
+                self.f.c = self.carry_subtraction(self.a, data);
                 self.pc += 2;
             }
             //XOR d8
@@ -267,8 +310,8 @@ impl Cpu {
             0x3d => {
                 self.a -= 1;
                 self.f.n = true;
-                if self.a == 0 {self.f.z = true} else {self.f.z = false}
-                self.half_carry_subtraction(self.a + 1, self.a);
+                self.f.z = self.zero(self.a);
+                self.f.h = self.half_carry_subtraction(self.a + 1, self.a);
                 self.pc += 1
 
             }
@@ -283,23 +326,30 @@ impl Cpu {
                     self.pc += 2;
                 }
             }
+            //JR r8
+            //- - - -
+            0x18 => {
+                let offset = memory.read_address(self.pc +1) as i8;
+                let target = ((self.pc as i32) + offset as i32) as u16;
+                self.pc = 2 + target;
+            }
             //DEC C
             //Z 1 H -
             0xd => {
                 self.c -= 1;
                 self.f.n = true;
-                if self.c == 0 {self.f.z = true} else {self.f.z = false}
-                self.half_carry_subtraction(self.c + 1, self.c);
+                self.f.z = self.zero(self.c);
+                self.f.h = self.half_carry_subtraction(self.c + 1, self.c);
                 self.pc += 1
 
             }
-            //DEC D
+            //DEC E
             //Z 1 H -
             0x1d => {
-                self.d -= 1;
+                self.e -= 1;
                 self.f.n = true;
-                if self.d == 0 {self.f.z = true} else {self.f.z = false}
-                self.half_carry_subtraction(self.d + 1, self.d);
+                self.f.z = self.zero(self.e);
+                self.f.h = self.half_carry_subtraction(self.e + 1, self.e);
                 self.pc += 1
 
             }
@@ -324,7 +374,7 @@ impl Cpu {
             //INC H
             //Z 0 H -
             0x24 => {
-                self.f.z = self.zero(self.h, 1);
+                self.f.z = self.zero(self.h + 1);
                 self.f.n = false;
                 self.f.h = self.half_carry_addition(self.h, 1);
 
@@ -334,7 +384,7 @@ impl Cpu {
             //INC B
             //Z 0 H -
             0x4 => {
-                self.f.z = self.zero(self.b, 1);
+                self.f.z = self.zero(self.b + 1);
                 self.f.n = false;
                 self.f.h = self.half_carry_addition(self.b, 1);
 
@@ -364,15 +414,23 @@ impl Cpu {
                     self.f.z = false;
                 }
                 self.f.n = true;
-                self.half_carry_subtraction(self.a, self.b);
-                if (self.a >= 128 && self.b < 128){
-                    self.f.c = true;
-                } else {
-                    self.f.c = false;
-                }
-
+                self.f.h = self.half_carry_subtraction(self.a, self.b);
+                self.f.c = self.carry_subtraction(self.a, self.b);
                 self.a = self.a - self.b;
                 self.pc += 1
+            }
+            //ADD A, (HL)
+            //Z 0 H C
+            0x86 => {
+                let addr = self.read_reg_16(self.h, self.l);
+                let val = memory.read_address(addr);
+                self.f.z = self.zero(self.a + val);
+                self.f.n = false;
+                self.f.h = self.half_carry_addition(self.a, val);
+                self.f.c = self.carry(self.a, val);
+
+                self.a = self.a + val;
+                self.pc += 1;
             }
             //jp a16
             //- - - -
@@ -399,7 +457,7 @@ impl Cpu {
             //inc a
             //Z 0 H -
             0x3c => {
-                self.f.z = self.zero(self.a, 1);
+                self.f.z = self.zero(self.a + 1);
                 self.f.n = false;
                 self.f.h = self.half_carry_addition(self.a, 1);
 
@@ -426,7 +484,7 @@ impl Cpu {
             //reti
             //- - - -
             0xd9 => {
-                self.pc = memory.read_16(self.sp - 2);
+                self.pc = memory.read_16(self.sp);
                 self.sp += 2;
                 //TODO: set intterupts
             }
@@ -434,7 +492,7 @@ impl Cpu {
             //add a, b
             //Z 0 H C
             0x80 => {
-                self.f.z = self.zero(self.a, self.b);
+                self.f.z = self.zero(self.a + self.b);
                 self.f.n = false;
                 self.f.h = self.half_carry_addition(self.a, self.b);
                 self.f.c = self.carry(self.a, self.b);
@@ -473,6 +531,14 @@ impl Cpu {
                     0x11 => {
                         let val = self.c;
                         self.c = self.rotate_left(val);
+                        self.f.z = self.zero(self.c);
+                        self.f.n = false;
+                        self.f.h = false;
+                        if (val >> 7) == 1 {
+                            self.f.c = true;
+                        } else {
+                            self.f.c = false;
+                        }
                     }
                     _ => {panic!("Unknown CB instruction: {:#x}", inst)}
                 }
@@ -528,9 +594,12 @@ fn half_carry_subtraction(&self, lhs:u8, rhs:u8) -> bool {
 fn carry(&self, lhs:u8, rhs:u8) -> bool {
     lhs as u16 + rhs as u16 > 255
 }
+fn carry_subtraction(&self, lhs:u8, rhs:u8) -> bool {
+    lhs >= 128 && rhs < 128
+}
 
-fn zero(&self, lhs:u8, rhs:u8) -> bool { 
-    lhs + rhs == 0 
+fn zero(&self, val:u8) -> bool { 
+    val == 0 
 }
 }
 
