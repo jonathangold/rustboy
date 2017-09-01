@@ -443,7 +443,6 @@ impl Cpu {
             }
             //SUB B
             //Z 1 H C
-            //TODO: Move carry to function
             0x90 => {
                 if (self.a - self.b) == 0 {
                     self.f.z = true;

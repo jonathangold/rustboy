@@ -1,11 +1,12 @@
 mod memory;
 mod cpu;
+mod display;
 
 fn main() {
     let mut cycle = 0;
     let mut memory = memory::Memory::new();
     let mut cpu:cpu::Cpu = Default::default();
-
+    display::init();
     loop {
         if cpu.pc > 0x100 {
             println!("{:?}", cpu);

@@ -4,3 +4,7 @@ version = "0.1.0"
 authors = ["Jonathan Gold <jonathan.e.gold@gmail.com>"]
 
 [dependencies]
+[dependencies.sdl2]
+version = "0.30"
+default-features = false
+features = ["gfx"]
