@@ -5,6 +5,9 @@ use std::fmt;
 
 #[derive(Default)]
 pub struct Cpu {
+
+    pub clock: u8,
+
     pub pc: u16,
     sp: u16,
 

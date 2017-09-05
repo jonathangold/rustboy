@@ -1,3 +1,8 @@
+extern crate sdl2;
+
+use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
+
 mod memory;
 mod cpu;
 mod display;
@@ -6,16 +11,25 @@ fn main() {
     let mut cycle = 0;
     let mut memory = memory::Memory::new();
     let mut cpu:cpu::Cpu = Default::default();
-    display::init();
-    loop {
-        if cpu.pc > 0x100 {
+    let mut display = display::Display::new();
+    let mut running = true;
+    while running {
+        for event in display.event_pump.poll_iter() {
+            match event {
+                Event::Quit {..} | Event::KeyDown {keycode: Some(Keycode::Escape), ..} => {
+                    running = false;
+                },
+                _ => {}
+            }
+        }
+        display.update();
             println!("{:?}", cpu);
-        }
-        if cycle % 456 == 0 {
-            fake_screen(&mut memory);
-        }
+        //if cycle % 456 == 0 {
+        //    fake_screen(&mut memory);
+        //}
         cpu.process(&mut memory);
-        cycle += 1
+        cpu.clock += 1;
+        // cycle += 1
     }
 }
 
