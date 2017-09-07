@@ -23,13 +23,11 @@ fn main() {
             }
         }
         display.update();
-            println!("{:?}", cpu);
-        //if cycle % 456 == 0 {
-        //    fake_screen(&mut memory);
-        //}
+        fake_screen(&mut memory);
         cpu.process(&mut memory);
         cpu.clock += 1;
-        // cycle += 1
+        cycle += 1;
+//        println!("{:?}", cpu);
     }
 }
 
