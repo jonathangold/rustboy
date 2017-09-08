@@ -27,9 +27,9 @@ pub struct Cpu {
 macro_rules! ld_16 {
     ($self:expr, $hi:ident, $lo:ident, $memory:expr) => {
         {
-            $self.$hi = $memory.read_address($self.pc + 3);
-            $self.$lo = $memory.read_address($self.pc + 2);
-            $self.pc += 1;
+            $self.$hi = $memory.read_address($self.pc + 2);
+            $self.$lo = $memory.read_address($self.pc + 1);
+            $self.pc += 3;
         }
     }
 }
@@ -49,6 +49,7 @@ macro_rules! inc_16 {
             let result = $self.read_reg_16($self.$hi, $self.$lo) + 1;
             $self.$hi = ((result & 0xFF00) >> 8) as u8;
             $self.$lo = result as u8;
+            $self.pc += 1;
         }
     }
 }
@@ -71,6 +72,7 @@ macro_rules! dec_16 {
             let result = $self.read_reg_16($self.$hi, $self.$lo) - 1;
             $self.$hi = ((result & 0xFF00) >> 8) as u8;
             $self.$lo = result as u8;
+            $self.pc += 1;
         }
     }
 }
@@ -97,11 +99,30 @@ macro_rules! ld_n_d8 {
     }
 }
 
+macro_rules! rln {
+    ($self:expr, $reg:ident) => {
+        {
+            let mut val = $self.$reg;
+            val = val << 1;
+            $self.$reg = val;
+            $self.f.z = false;
+            $self.f.n = false;
+            $self.f.h = false;
+            if $self.f.c { val += 1 }
+            if ($self.$reg >> 7) == 1 {
+                $self.f.c = true;
+            } else {
+                $self.f.c = false;
+            }
+            $self.pc += 1;
+        }
+    }
+}
+
 impl Cpu {
     pub fn process(&mut self, memory: &mut memory::Memory) {
         let opcode = memory.read_address(self.pc);
-        // println!("{:#?}", self);
-        // println!("{:#x}: {:#x}", self.pc, opcode);
+         //println!("{:?}: {:#x}", self, opcode);
         match opcode {
             //LD BC, d16
             0x1 => { ld_16!(self, b, c, memory) }
@@ -131,6 +152,14 @@ impl Cpu {
             0x15 => { dec!(self, d) }
             //LD D,d8
             0x16 => { ld_n_d8!(self, d, memory) }
+            //RLA
+            0x17 => { println!("{:?}", self); rln!(self, a); println!("{:?}", self); }
+            //JR r8
+            0x18 => {
+                let offset = memory.read_address(self.pc +1) as i8;
+                let target = ((self.pc as i32) + offset as i32) as u16;
+                self.pc = 2 + target;
+            }
             //LD A,(HL+)
             //- - - -
             0x2a => {
@@ -201,8 +230,8 @@ impl Cpu {
                 self.a = memory.read_address(self.pc + 1);
                 self.pc += 2;
             }
-            
-            
+
+
             //LD L,d8
             //- - - -
             0x2e => {
@@ -216,7 +245,7 @@ impl Cpu {
                 memory.contents[addr as usize] = self.a;
                 self.pc += 1;
             }
-            
+
             //LD [HL], A
             //- - - -
             0x77 => {
@@ -231,7 +260,7 @@ impl Cpu {
                 memory.contents[(0xFF00 + addr as u16) as usize] = self.a;
                 self.pc += 2;
             }
-            
+
             //LD A, (DE)
             //- - - -
             0x1a => {
@@ -254,7 +283,7 @@ impl Cpu {
                 self.c = self.a;
                 self.pc += 1;
             }
-            
+
             //PUSH BC
             //- - - -
             0xc5 => {
@@ -262,21 +291,7 @@ impl Cpu {
                 memory.write_16(self.sp, self.read_reg_16(self.b, self.c));
                 self.pc += 1;
             }
-            //RLA
-            //0 0 0 C
-            0x17 => {
-                let val = self.a;
-                self.a = self.rotate_left(val);
-                self.f.z = false;
-                self.f.n = false;
-                self.f.h = false;
-                if (val >> 7) == 1 {
-                    self.f.c = true;
-                } else {
-                    self.f.c = false;
-                }
-                self.pc += 1;
-            }
+
             //POP BC
             //- - - -
             0xc1 => {
@@ -286,7 +301,7 @@ impl Cpu {
                 self.pc += 1;
             }
 
-            
+
             //LD (HL+),A
             //- - - -
             0x22 => {
@@ -309,7 +324,7 @@ impl Cpu {
                 self.pc = memory.read_16(self.sp);
                 self.sp += 2;
             }
-            
+
             //LD A, B
             //- - - -
             0x78 => {
@@ -400,14 +415,8 @@ impl Cpu {
                     self.pc += 2;
                 }
             }
-            //JR r8
-            //- - - -
-            0x18 => {
-                let offset = memory.read_address(self.pc +1) as i8;
-                let target = ((self.pc as i32) + offset as i32) as u16;
-                self.pc = 2 + target;
-            }
             
+
             //DEC E
             //Z 1 H -
             0x1d => {
@@ -623,10 +632,6 @@ impl Cpu {
 fn rotate_left(&mut self, value:u8) -> u8 {
     let mut result = value << 1;
     if self.f.c {result += 1}
-    if value >> 7 == 1 {self.f.c = true} else {self.f.c = false}
-    if value as u8 == 0 {self.f.z = true} else {self.f.z = false}
-    self.f.n = false;
-    self.f.h = false;
     result // & 0xFF;
 }
 
