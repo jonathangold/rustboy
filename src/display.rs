@@ -1,6 +1,8 @@
 extern crate sdl2;
 
 use self::sdl2::pixels;
+use self::sdl2::pixels::Color;
+use sdl2::rect::{Point};
 use self::sdl2::keyboard::Keycode;
 
 use self::sdl2::gfx::primitives::DrawRenderer;
@@ -34,12 +36,8 @@ impl Display {
         }
     }
     pub fn update(&mut self) {
-        let mut color = 0u32;
-        for y in 1..SCREEN_HEIGHT {
-            for x in 1..SCREEN_WIDTH {
-                self.canvas.pixel(x as i16, y as i16, color).unwrap();
-            }
-        }
+        self.canvas.set_draw_color(Color::RGB(128, 128, 128));
+        self.canvas.draw_point(Point::new(60 as i32, 60 as i32)).unwrap();
         self.canvas.clear();
         self.canvas.present();
     }

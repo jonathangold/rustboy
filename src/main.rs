@@ -22,14 +22,16 @@ fn main() {
                 _ => {}
             }
         }
-        display.update();
+        //display.update();
+        if cpu.pc > 0x100{
             println!("{:?}", cpu);
-        //if cycle % 456 == 0 {
-        //    fake_screen(&mut memory);
-        //}
+        }
+        if cycle % 456 == 0 {
+            fake_screen(&mut memory);
+        }
         cpu.process(&mut memory);
         cpu.clock += 1;
-        // cycle += 1
+        cycle += 1
     }
 }
 
