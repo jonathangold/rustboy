@@ -59,7 +59,18 @@ macro_rules! inc {
             $self.$reg += 1;
             $self.f.z = $self.zero($self.$reg + 1);
             $self.f.n = false;
-            $self.f.h = self.half_carry_addition($self.$reg, 1);
+            $self.f.h = $self.half_carry_addition($self.$reg, 1);
+            $self.pc += 1;
+        }
+    }
+}
+
+macro_rules! dec_16 {
+    ($self:expr, $hi:ident, $lo:ident) => {
+        {
+            let result = $self.read_reg_16($self.$hi, $self.$lo) - 1;
+            $self.$hi = ((result & 0xFF00) >> 8) as u8;
+            $self.$lo = result as u8;
         }
     }
 }
@@ -76,6 +87,16 @@ macro_rules! dec {
     }
 }
 
+macro_rules! ld_n_d8 {
+    ($self:expr, $var:ident, $memory:expr) => {
+        {
+            let data = $memory.read_address($self.pc + 1);
+            $self.$var = data;
+            $self.pc += 2;
+        }
+    }
+}
+
 impl Cpu {
     pub fn process(&mut self, memory: &mut memory::Memory) {
         let opcode = memory.read_address(self.pc);
@@ -83,33 +104,33 @@ impl Cpu {
         // println!("{:#x}: {:#x}", self.pc, opcode);
         match opcode {
             //LD BC, d16
-            //- - - -
             0x1 => { ld_16!(self, b, c, memory) }
             //ld (bc),a
-            //- - - -
             0x2 => { ld_nn_n!(self, b, c, a, memory) }
             //INC BC
             0x3 => { inc_16!(self, b, c) }
             //INC B
-            //Z 0 H -
-            0x4 => {
-                self.f.z = self.zero(self.b + 1);
-                self.f.n = false;
-                self.f.h = self.half_carry_addition(self.b, 1);
-
-                self.b += 1;
-                self.pc += 1;
-            }
+            0x4 => { inc!(self, b) }
             //DEC B
-            //Z 1 H -
             0x5 => { dec!(self, b) }
+            //LD B,d8
+            0x6 => { ld_n_d8!(self, b, memory) }
             //DEC BC
-            //- - - -
-            0xb => {
-                let data = self.read_reg_16(self.b, self.c);
-                self.write_bc(data - 1);
-                self.pc += 1;
-            }
+            0xb => { dec_16!(self, b, c) }
+            //INC C
+            0xc => { inc!(self, c) }
+            //DEC C
+            0xd => { dec!(self, c) }
+            //LD C,d8
+            0xe => { ld_n_d8!(self, c, memory) }
+            //LD DE, d16
+            0x11 => { ld_16!(self, d, e, memory) }
+            //INC DE
+            0x13 => { inc_16!(self, d, e) }
+            //DEC D
+            0x15 => { dec!(self, d) }
+            //LD D,d8
+            0x16 => { ld_n_d8!(self, d, memory) }
             //LD A,(HL+)
             //- - - -
             0x2a => {
@@ -180,18 +201,8 @@ impl Cpu {
                 self.a = memory.read_address(self.pc + 1);
                 self.pc += 2;
             }
-            //LD C,d8
-            //- - - -
-            0xe => {
-                self.c = memory.read_address(self.pc + 1);
-                self.pc += 2;
-            }
-            //LD D,d8
-            //- - - -
-            0x16 => {
-                self.d = memory.read_address(self.pc + 1);
-                self.pc += 2;
-            }
+            
+            
             //LD L,d8
             //- - - -
             0x2e => {
@@ -205,16 +216,7 @@ impl Cpu {
                 memory.contents[addr as usize] = self.a;
                 self.pc += 1;
             }
-            //INC C
-            //Z 0 H -
-            0xc => {
-                self.f.z = self.zero(self.c + 1);
-                self.f.n = false;
-                self.f.h = self.half_carry_addition(self.c, 1);
-
-                self.c += 1;
-                self.pc += 1;
-            }
+            
             //LD [HL], A
             //- - - -
             0x77 => {
@@ -229,13 +231,7 @@ impl Cpu {
                 memory.contents[(0xFF00 + addr as u16) as usize] = self.a;
                 self.pc += 2;
             }
-            //LD DE, d16
-            //- - - -
-            0x11 => {
-                let data = memory.read_16(self.pc +1);
-                self.write_de(data);
-                self.pc += 3;
-            }
+            
             //LD A, (DE)
             //- - - -
             0x1a => {
@@ -258,13 +254,7 @@ impl Cpu {
                 self.c = self.a;
                 self.pc += 1;
             }
-            //LD B,d8
-            //- - - -
-            0x6 => {
-                let data = memory.read_address(self.pc +1);
-                self.b = data;
-                self.pc += 2;
-            }
+            
             //PUSH BC
             //- - - -
             0xc5 => {
@@ -296,15 +286,7 @@ impl Cpu {
                 self.pc += 1;
             }
 
-            //DEC D
-            //Z 1 H -
-            0x15 => {
-                self.d -= 1;
-                self.f.n = true;
-                self.f.z = self.zero(self.d);
-                self.f.h = self.half_carry_subtraction(self.d + 1, self.d);
-                self.pc += 1
-            }
+            
             //LD (HL+),A
             //- - - -
             0x22 => {
@@ -327,13 +309,7 @@ impl Cpu {
                 self.pc = memory.read_16(self.sp);
                 self.sp += 2;
             }
-            //INC DE
-            //- - - -
-            0x13 => {
-                let result = self.read_reg_16(self.d, self.e) + 1;
-                self.write_de(result);
-                self.pc += 1;
-            }
+            
             //LD A, B
             //- - - -
             0x78 => {
@@ -431,16 +407,7 @@ impl Cpu {
                 let target = ((self.pc as i32) + offset as i32) as u16;
                 self.pc = 2 + target;
             }
-            //DEC C
-            //Z 1 H -
-            0xd => {
-                self.c -= 1;
-                self.f.n = true;
-                self.f.z = self.zero(self.c);
-                self.f.h = self.half_carry_subtraction(self.c + 1, self.c);
-                self.pc += 1
-
-            }
+            
             //DEC E
             //Z 1 H -
             0x1d => {
